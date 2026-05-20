@@ -252,7 +252,12 @@
                     <!-- 筛选项1：学生姓名 -->
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">学生姓名</label>
-                        <input type="text" x-model="filters.studentName" :disabled="currentRole === 'student'" placeholder="输入学生姓名筛选" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+                        <input type="text" list="studentFilterOptions" x-model="filters.studentName" :disabled="currentRole === 'student'" placeholder="输入学生姓名筛选" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+                        <datalist id="studentFilterOptions">
+                            <template x-for="st in students" :key="st.id">
+                                <option :value="st.name"></option>
+                            </template>
+                        </datalist>
                     </div>
 
                     <!-- 筛选项2：申请项目 -->
@@ -285,7 +290,12 @@
                     <!-- 筛选项5：负责老师 -->
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">主导/负责老师</label>
-                        <input type="text" x-model="filters.teacherName" :disabled="currentRole === 'teacher'" placeholder="输入老师姓名筛选" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+                        <input type="text" list="teacherFilterOptions" x-model="filters.teacherName" :disabled="currentRole === 'teacher'" placeholder="输入老师姓名筛选" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
+                        <datalist id="teacherFilterOptions">
+                            <template x-for="teacher in teachers" :key="teacher.id">
+                                <option :value="teacher.name"></option>
+                            </template>
+                        </datalist>
                     </div>
                 </div>
             </div>
@@ -310,15 +320,7 @@
                                 <tr class="hover:bg-slate-50/50 transition-colors duration-150" :class="isUrgent(app.ddl) ? 'bg-rose-50/10' : ''">
                                     <!-- 1. 学生姓名 -->
                                     <td class="py-5 px-6">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-inner"
-                                                 :class="isUrgent(app.ddl) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'"
-                                                 x-text="app.studentName.charAt(0)">
-                                            </div>
-                                            <div>
-                                                <div class="font-semibold text-slate-800" x-text="app.studentName"></div>
-                                            </div>
-                                        </div>
+                                        <div class="font-semibold text-slate-800" x-text="app.studentName"></div>
                                     </td>
 
                                     <!-- 2. 申请项目 -->
@@ -326,9 +328,6 @@
                                         <div class="flex flex-col gap-1">
                                             <div class="font-medium text-slate-800" x-text="app.projectName"></div>
                                             <div class="flex items-center gap-2 mt-1">
-                                                <span class="text-xs text-slate-400">
-                                                    <i class="fa-solid fa-building-columns mr-1"></i> 目标院校项目
-                                                </span>
                                                 <!-- 仅在管理人模式下，支持快捷修改项目信息和项目删除 -->
                                                 <template x-if="currentRole === 'manager'">
                                                     <div class="flex items-center gap-1.5 ml-2">
@@ -390,13 +389,22 @@
                                                     <div class="text-xs text-slate-600 flex items-center gap-1.5 min-w-[130px]">
                                                         <i class="fa-solid fa-user-pen text-slate-400"></i>
                                                         <template x-if="currentRole === 'manager'">
-                                                            <!-- 管理人可修改分配老师 (从系统老师数据库读取) -->
-                                                            <select @change="updateTeacher(task, $event.target.value)" class="bg-slate-50 border border-slate-200 text-xs rounded-md px-1 py-0.5 focus:outline-none focus:border-indigo-500">
-                                                                <option value="" :selected="!task.teacher">未分配老师</option>
-                                                                <template x-for="teacher in teachers" :key="teacher.id">
-                                                                    <option :value="teacher.name" :selected="task.teacher === teacher.name" x-text="teacher.name"></option>
-                                                                </template>
-                                                            </select>
+                                                            <!-- 管理人可修改分配老师 (可搜索下拉列表) -->
+                                                            <div class="relative">
+                                                                <input
+                                                                    type="text"
+                                                                    :list="'teacherList-' + task.id"
+                                                                    :value="task.teacher"
+                                                                    @change="updateTeacher(task, $event.target.value)"
+                                                                    placeholder="搜索并选择老师"
+                                                                    class="bg-slate-50 border border-slate-200 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-indigo-500 transition-colors w-full"
+                                                                />
+                                                                <datalist :id="'teacherList-' + task.id">
+                                                                    <template x-for="teacher in teachers" :key="teacher.id">
+                                                                        <option :value="teacher.name"></option>
+                                                                    </template>
+                                                                </datalist>
+                                                            </div>
                                                         </template>
                                                         <template x-if="currentRole !== 'manager'">
                                                             <!-- 非管理人仅展示 -->
@@ -1655,9 +1663,10 @@
                     this.showNotification('文件上传成功');
                 },
                 updateTeacher(task, name) {
-                    task.teacher = name;
+                    const matched = this.teachers.find(t => t.name === name.trim());
+                    task.teacher = matched ? matched.name : '';
                     this.saveToStorage();
-                    this.showNotification(`已分配给 ${name || '未分配'}`);
+                    this.showNotification(`已分配给 ${matched ? matched.name : '未分配'}`);
                 },
                 openPreview(task, app) {
                     this.previewData = {
