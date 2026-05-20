@@ -215,7 +215,7 @@
                         <button @click="openTeacherModal()" class="bg-white hover:bg-slate-50 text-slate-700 font-medium text-sm py-2 px-4 rounded-xl border border-slate-200 shadow-sm transition-all duration-150 flex items-center gap-2">
                             <i class="fa-solid fa-user-gear text-emerald-500"></i> 管理合作老师
                         </button>
-                        <button @click="isProjectModalOpen = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm py-2 px-4 rounded-xl shadow-md shadow-indigo-500/10 transition-all duration-150 flex items-center gap-2">
+                        <button @click="openProjectModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm py-2 px-4 rounded-xl shadow-md shadow-indigo-500/10 transition-all duration-150 flex items-center gap-2">
                             <i class="fa-solid fa-plus"></i> 新建申请项目
                         </button>
                     </div>
@@ -707,12 +707,20 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1.5">选择对应学生 *</label>
-                        <select x-model="projectForm.studentId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 focus:bg-white transition-all">
-                            <option value="">请选择一名已登记学生</option>
-                            <template x-for="st in students" :key="st.id">
-                                <option :value="st.id" x-text="st.name" :selected="st.id == projectForm.studentId"></option>
+                        <input
+                            type="text"
+                            list="projectStudents"
+                            x-model="projectStudentSearch"
+                            @input="syncProjectStudentBySearch()"
+                            placeholder="搜索并选择学生姓名"
+                            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 transition-all"
+                            required
+                        />
+                        <datalist id="projectStudents">
+                            <template x-for="st in filteredProjectStudents()" :key="st.id">
+                                <option :value="st.name"></option>
                             </template>
-                        </select>
+                        </datalist>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1.5">申请项目名称 *</label>
@@ -1021,6 +1029,8 @@
 
                 // 学生名册筛选
                 studentSearch: '',
+                // 新建项目学生筛选
+                projectStudentSearch: '',
                 // 老师名册筛选
                 teacherSearch: '',
 
@@ -1413,6 +1423,15 @@
                     const keyword = this.studentSearch.trim().toLowerCase();
                     return this.students.filter(st => st.name.toLowerCase().includes(keyword));
                 },
+                syncProjectStudentBySearch() {
+                    const matched = this.students.find(st => st.name.toLowerCase() === (this.projectStudentSearch || '').trim().toLowerCase());
+                    this.projectForm.studentId = matched ? matched.id : '';
+                },
+                filteredProjectStudents() {
+                    if (!this.projectStudentSearch) return this.students;
+                    const keyword = this.projectStudentSearch.trim().toLowerCase();
+                    return this.students.filter(st => st.name.toLowerCase().includes(keyword));
+                },
                 filteredTeachers() {
                     if (!this.teacherSearch) return this.teachers;
                     const keyword = this.teacherSearch.trim().toLowerCase();
@@ -1429,6 +1448,13 @@
                 },
 
                 // ========== 老师管理 ==========
+                openProjectModal() {
+                    this.isEditingProject = false;
+                    this.editingProjectId = null;
+                    this.projectForm = { studentId: '', name: '', ddl: '' };
+                    this.projectStudentSearch = '';
+                    this.isProjectModalOpen = true;
+                },
                 openTeacherModal() {
                     this.isEditingTeacher = false;
                     this.editingTeacherId = null;
@@ -1526,6 +1552,7 @@
                         name: app.projectName,
                         ddl: app.ddl
                     };
+                    this.projectStudentSearch = stu ? stu.name : '';
                     this.isProjectModalOpen = true;
                 },
                 closeProjectModal() {
@@ -1533,6 +1560,7 @@
                     this.isEditingProject = false;
                     this.editingProjectId = null;
                     this.projectForm = { studentId: '', name: '', ddl: '' };
+                    this.projectStudentSearch = '';
                 },
                 saveProjectForm() {
                     this.isEditingProject ? this.updateProject() : this.addProject();
