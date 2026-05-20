@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 interface User {
   name: string
@@ -49,7 +49,7 @@ interface Application {
 }
 
 interface DashboardProps {
-  user: User
+  user: User | null
   onLogout: () => void
 }
 
@@ -67,18 +67,24 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     teacherName: '',
   })
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  // Redirect if user is null
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-600">加载中...</div>
+      </div>
+    )
+  }
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [studentsRes, teachersRes, applicationsRes] = await Promise.all([
-        fetch('/api/students'),
-        fetch(`/api/applications${user.role === 'student' && user.id ? `?studentId=${user.id}` : user.role === 'teacher' && user.id ? `?teacherId=${user.id}` : ''}`),
-        fetch('/api/teachers'),
-      ])
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const [studentsRes, teachersRes, applicationsRes] = await Promise.all([
+          fetch('/api/students'),
+          fetch(`/api/applications${user.role === 'student' && user.id ? `?studentId=${user.id}` : user.role === 'teacher' && user.id ? `?teacherId=${user.id}` : ''}`),
+          fetch('/api/teachers'),
+        ])
       
       const studentsData = await studentsRes.json()
       const teachersData = await teachersRes.json()
@@ -87,10 +93,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       if (studentsData.success) setStudents(studentsData.data)
       if (teachersData.success) setApplications(teachersData.data)
       if (applicationsData.success) setTeachers(applicationsData.data)
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+      }
+      setLoading(false)
     }
-    setLoading(false)
+    fetchData()
   }, [user.role, user.id])
 
   const getDaysLeft = (ddl: string) => {
